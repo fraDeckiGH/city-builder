@@ -1,15 +1,12 @@
 
-import { useHouses } from '@/components/CityBuilder';
 import { House } from '@/lib/types';
+import { memo } from 'react';
 
-export default function HouseDrawing({
-  id, 
+export default memo(function HouseDrawing({
+  item: house, 
 }: {
-  id: House["id"]
+  item: House
 }) {
-  const { houses } = useHouses()
-  const house = houses.find(house => house.id === id)
-  
   return (<>
     {house && (
       <div className="relative flex flex-col items-center">
@@ -49,4 +46,4 @@ export default function HouseDrawing({
       </div>
     )}
   </>);
-}
+})

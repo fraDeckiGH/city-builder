@@ -4,7 +4,6 @@ import * as React from "react"
 import * as TabsPrimitive from "@radix-ui/react-tabs"
 
 import { cn } from "@/lib/utils"
-import { memo } from "react"
 
 function Tabs({
   className,
@@ -51,11 +50,10 @@ function TabsTrigger({
   )
 }
 
-// function TabsContent({
-const TabsContent = memo(({
+function TabsContent({
   className,
   ...props
-}: React.ComponentProps<typeof TabsPrimitive.Content>) => {
+}: React.ComponentProps<typeof TabsPrimitive.Content>) {
   return (
     <TabsPrimitive.Content
       data-slot="tabs-content"
@@ -63,6 +61,25 @@ const TabsContent = memo(({
       {...props}
     />
   )
-})
+}
+
+/* const TabsContent = memo(({
+  className,
+  ...props
+}: React.ComponentProps<typeof TabsPrimitive.Content>) => {
+  const cnMemo = useCallback(() => cn("flex-1 outline-none", className), [className])
+  const propsMemo = useMemo(() => props, [props])
+  const TabsPrimitiveMemo = useMemo(() => (
+    <TabsPrimitive.Content
+      data-slot="tabs-content"
+      className={cnMemo()}
+      {...propsMemo}
+    />
+  ), [ cnMemo, propsMemo ])
+  
+  return (
+    TabsPrimitiveMemo
+  )
+}) */
 
 export { Tabs, TabsList, TabsTrigger, TabsContent }

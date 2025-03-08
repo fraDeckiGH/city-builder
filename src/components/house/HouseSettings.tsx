@@ -6,50 +6,32 @@ import { Slider } from '@/components/ui/slider';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { House } from '@/lib/types';
-import { memo, type Dispatch, type SetStateAction } from 'react';
+import { memo, use } from 'react';
 import { colors } from '@/lib/db';
-import { useHouses } from '@/components/CityBuilder';
+import { 
+  // HousesContext, 
+  SetHousesContext, 
+} from '@/components/CityBuilder';
 
 export default memo(function HouseSettings({
-  id, 
+  item: house, 
 }: {
-  id: House["id"]
+  item: House
 }) {
-  const { houses, setHouses } = useHouses()
-  const house = houses.find(house => house.id === id)
+  // const houseCtx = useContextSelector(HousesContext, (ctx) => ctx.find((obj) => obj.id === id)!)
+  const dispatch = use(SetHousesContext)
   
-  // future: I expect these funcs to disappear from here, once using 'useReducer'
-  
-  const duplicateHouse = (house: House) => {
-    const newHouse: House = {
-      ...house,
-      id: Date.now().toString(),
-      name: `${house.name} (Copy)`,
-    }
-    
-    setHouses((houses) => ([...houses, newHouse]));
-  }
-  
-  const removeHouse = (id: string) => {
-    setHouses((houses) => ( houses.filter(house => house.id !== id) ));
-  }
-  
-  const updateHouse = (id: string, updates: Partial<House>) => {
-    setHouses((houses) => {
-      const ret = houses.map(
-        (house) => (
-          house.id === id ? 
-          { ...house, ...updates } : house
-        )
-      );
-      
-      return ret
+  function updateHouse(id: House["id"], updates: Partial<House>) {
+    dispatch({
+      type: 'patch',
+      id,
+      item: updates,
     });
   }
   
   return (<>
     {house && (
-      <div className="bg-gray-700 rounded-lg p-4 mb-4">
+      <div className="bg-gray-700 rounded-lg p-4">
         
         <div className="flex justify-between items-center mb-3">
           <Input
@@ -61,14 +43,20 @@ export default memo(function HouseSettings({
             <Button 
               variant="ghost" 
               size="icon"
-              onClick={() => duplicateHouse(house)}
+              onClick={(e) => dispatch({ 
+                type: "duplicate", 
+                item: house, 
+              })}
             >
               <Copy className="h-4 w-4" />
             </Button>
             <Button 
               variant="ghost-destructive" 
               size="icon"
-              onClick={() => removeHouse(house.id)}
+              onClick={(e) => dispatch({ 
+                type: "remove", 
+                id: house.id, 
+              })}
             >
               <Trash2 className="h-4 w-4" />
             </Button>

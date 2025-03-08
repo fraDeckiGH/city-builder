@@ -1,7 +1,10 @@
+import { houses } from "@/lib/db"
 
 export type {
   Color, 
+  Func, 
   House, 
+  Houses, 
   Location, 
   Weather, 
 }
@@ -12,12 +15,15 @@ interface Color {
   value: string
 }
 
+type Func<T = void> = (...args: any[]) => T
+
 interface House {
   id: string
   name: string
   floors: number
   color: Color["value"]
 }
+type Houses = typeof houses
 
 interface Location {
   name: string

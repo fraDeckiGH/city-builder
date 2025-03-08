@@ -1,42 +1,91 @@
 'use client';
 
-import { createContext, memo, use, useContext, useMemo, useState } from 'react';
+import { memo, useCallback, useMemo, useReducer, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { House, Location, Weather } from '@/lib/types';
+import { House, Houses, Location, Weather } from '@/lib/types';
 import WeatherSettings from '@/components/weather/WeatherSettings';
 import HouseSettings from '@/components/house/HouseSettings';
 import HouseDrawing from '@/components/house/HouseDrawing';
 import HousesSettings from '@/components/house/HousesSettings';
 import WeatherDisplay from '@/components/weather/WeatherDisplay';
 import { 
+  colors,
   houses as housesInitialValue, 
   locations 
 } from '@/lib/db';
 
+import { createContext } from 'react';
+import { createContext as createContextWithSelector } from 'use-context-selector';
+
 
 // TODO: move elsewhere
 // #region house
-function useHousesState(initialValue: House[]) {
-  // TODO: use 'useReducer' instead
-  const [houses, setHouses] = useState(initialValue)
+export type UseHousesState = ReturnType<typeof useHousesState>
 
+function useHousesState(initialValue: Houses) {
+  type HousesReducerAction = {
+    type: 'add'
+  } | {
+    type: 'duplicate'
+    item: House
+  } | {
+    type: 'patch'
+    id: House['id']
+    item: Partial<House>
+  } | {
+    type: 'remove'
+    id: House['id']
+  }
+  function reducer(state: House[], action: HousesReducerAction) {
+    switch (action.type) {
+      case 'add': {
+        const newItem: House = {
+          id: Date.now().toString(),
+          name: `House ${state.length + 1}`,
+          floors: Math.floor(Math.random() * 10) + 1,
+          color: colors[Math.floor(Math.random() * colors.length)].value,
+        }
+        return ([ ...state, newItem ]);
+        break
+      }
+      case 'duplicate': {
+        const { item } = action
+        const newItem: House = {
+          ...item,
+          id: Date.now().toString(),
+          name: `${item.name} (Copy)`,
+        }
+        return ([ ...state, newItem ]);
+        break
+      }
+      case 'patch': {
+        const { id, item } = action
+        return (
+          state.map((obj) => (
+            obj.id === id ? { ...obj, ...item } : obj
+          ))
+        );
+        break
+      }
+      case 'remove': {
+        const { id } = action
+        return state.filter((obj) => obj.id !== id);
+        break
+      }
+    }
+  }
+  
+  const [ value, valueDispatch ] = useReducer(reducer, initialValue)
   return ({
-    houses,
-    setHouses,
+    value, 
+    valueDispatch, 
   })
 }
 
-const HousesContext = createContext<(ReturnType<typeof useHousesState>) | null>(null)
-
-export function useHouses() {
-  const context = use(HousesContext)
-  if (!context) {
-    throw new Error('useHouses must be used within a HousesContext.Provider');
-  }
-  return context
-}
+// export const HousesContext = createContextWithSelector<UseHousesState["value"]>({} as UseHousesState["value"])
+export const SetHousesContext = createContext<UseHousesState["valueDispatch"]>({} as UseHousesState["valueDispatch"])
 // #endregion house
 
 
@@ -100,11 +149,14 @@ function useWeather(selectedLocation: Location["value"]) {
 // #endregion weather API
 
 
-export default function CityBuilder() {
-  const { houses, setHouses } = useHousesState(housesInitialValue)
-  const housesMemoized = useMemo(() => houses, [houses])
+export default memo(function CityBuilder() {
+  const { 
+    value: houses, 
+    valueDispatch: housesDispatch 
+  } = useHousesState(housesInitialValue)
   
-  const [selectedLocation, setSelectedLocation] = useState(locations[0].value)
+  const [ selectedLocation, setSelectedLocation ] = useState(locations[0].value)
+  const [ tab, setTab ] = useState("houses")
   
   // fetch weather data
   const { data: weather, isError, isLoading } = useWeather(selectedLocation)
@@ -116,14 +168,14 @@ export default function CityBuilder() {
         City Builder
       </h2>
       
-      <HousesContext.Provider value={{
-        houses, 
-        setHouses, 
-      }}>
+      <SetHousesContext.Provider value={housesDispatch}>
         <div className="flex overflow-y-auto gap-8">
           <div className="w-full md:w-1/3">
             <Tabs className="max-h-full flex flex-col"
-              defaultValue="houses"
+              defaultValue={tab}
+              onValueChange={(nextValue) => {
+                setTab((prevValue) => nextValue)
+              }}
             >
               {/* tab buttons */}
               <TabsList className="w-full mb-4">
@@ -140,16 +192,22 @@ export default function CityBuilder() {
               </TabsList>
               
               {/* tab: houses */}
-              <TabsContent value="houses" className="overflow-y-auto 
-                px-1 space-y-4">
+              {/* <TabsContent value="houses" className="overflow-y-auto 
+                px-1 space-y-4"> */}
+              <div className={`
+                flex-1 outline-none 
+                overflow-y-auto px-1 space-y-4
+                ${tab !== "houses" && "hidden"}
+              `}>
                 <HousesSettings>
-                  {housesMemoized.map((house) => (
+                  {houses.map((house) => (
                     <HouseSettings key={house.id}
-                      id={house.id}
+                      item={house}
                     ></HouseSettings>
                   ))}
                 </HousesSettings>
-              </TabsContent>
+              </div>
+              {/* </TabsContent> */}
               
               {/* tab: weather */}
               <TabsContent value="weather" className="overflow-y-auto
@@ -187,9 +245,9 @@ export default function CityBuilder() {
               <div className="p-4 
                 inline-flex gap-4 flex-wrap items-end 
               ">
-                {housesMemoized.map((house) => (
+                {houses.map((house) => (
                   <HouseDrawing key={house.id}
-                    id={house.id}
+                    item={house}
                   ></HouseDrawing>
                 ))}
               </div>
@@ -197,7 +255,7 @@ export default function CityBuilder() {
             
           </div>
         </div>
-      </HousesContext.Provider>
+      </SetHousesContext.Provider>
     </Card>
   );
-}
+})
